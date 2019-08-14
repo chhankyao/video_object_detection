@@ -141,12 +141,12 @@ if __name__ == "__main__":
             res.append(r)
             if global_ep.value % 50 == 0:
                 print('ep {}: reward = {}'.format(global_ep.value, r))
-                torch.save(gnet.state_dict(), 'A3C_detect2.pth')
-                np.save('rewards_detect2', np.array(res))
+                torch.save(gnet.state_dict(), 'A3C_detect3.pth')
+                np.save('rewards_detect3', np.array(res))
         else:
             break
             
     [w.join() for w in workers]
-    torch.save(gnet.state_dict(), 'A3C_detect2.pth')
-    np.save('rewards_detect2', np.array(res))
+    torch.save(gnet.state_dict(), 'A3C_detect3.pth')
+    np.save('rewards_detect3', np.array(res))
     

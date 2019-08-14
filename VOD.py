@@ -378,34 +378,40 @@ class VOD(nn.Module):
         self.boxes = []
         self.reward = 0
         self.cost = 0
-        return self.scheduler.boxes_to_state(self.boxes)
+        s, _, _ = self.step(1)
+        if len(self.boxes) == 0:
+            self.reset()
+        return s
     
                         
     def get_reward(self):
         label = self.img_list[self.frame_i].replace('Data', 'Annotations').replace('.JPEG', '.xml')
         boxes_gt = parse_bbox(label, self.id2idx)
-        detections = self.detector.detect(self.frame, conf_thres=0.1)
-        boxes_baseline = self.update_bbox([], detections, True)
+        #detections = self.detector.detect(self.frame, conf_thres=0.1)
+        #boxes_baseline = self.update_bbox([], detections, True)
         tp, tp_iou = get_tp_iou(self.boxes, boxes_gt, self.iou_thres)
-        tp2, tp_iou2 = get_tp_iou(boxes_baseline, boxes_gt, self.iou_thres)
+        #tp2, tp_iou2 = get_tp_iou(boxes_baseline, boxes_gt, self.iou_thres)
         r = tp_iou / (len(self.boxes) + len(boxes_gt) - tp + 1e-9)
-        r2 = tp_iou2 / (len(boxes_baseline) + len(boxes_gt) - tp2 + 1e-9)
-        self.reward += (r - r2)
-        cost = np.sum(self.scheduler.detect_frames)
-        if cost > (self.scheduler.base_interval/3):
-            self.cost = 0.5
-        elif cost > (self.scheduler.base_interval/5):
-            self.cost = 0.1
-        elif len(self.scheduler.detect_frames) >= self.scheduler.base_interval and cost <= 1:
-            self.cost = 0.1
-        else:
-            self.cost = 0
+        #r2 = tp_iou2 / (len(boxes_baseline) + len(boxes_gt) - tp2 + 1e-9)
+        #self.reward += (r - r2)
+        #cost = np.sum(self.scheduler.detect_frames)
+        #if cost > (self.scheduler.base_interval/3):
+        #    self.cost = 0.5
+        #elif cost > (self.scheduler.base_interval/5):
+        #    self.cost = 0.1
+        #elif len(self.scheduler.detect_frames) >= self.scheduler.base_interval and cost <= 1:
+        #    self.cost = 0.1
+        #else:
+        #    self.cost = 0
+        return r
 
 
     def step(self, a):
         self.scheduler.update_interval(self.boxes, a)
         detect = self.scheduler.step()
         
+        r, c = 0, 0
+        r1 = self.get_reward()
         if detect:
             detections = self.detector.detect(self.frame, conf_thres=0.1)
             self.boxes = self.update_bbox(self.boxes, detections, True)
@@ -418,18 +424,29 @@ class VOD(nn.Module):
                     self.trackers.append(TrackerSiamFC(net_path='siamfc.pth'))
                     self.trackers[-1].init(self.frame, to_tracking_box(box[:4]))
 
-        self.get_reward()
-        done = (self.frame_i == len(self.img_list)-2) or self.scheduler.frame_i >= 100 #(len(self.boxes) == 0)
-        if done:
-            r = self.reward/self.scheduler.frame_i - self.cost
-        else:
-            r = 0
+            r2 = self.get_reward()
+            r = r2 - r1
+        
+            cost = np.sum(self.scheduler.detect_frames)
+            if cost > (self.scheduler.base_interval/3):
+                c = 0.1
+            elif cost > (self.scheduler.base_interval/5):
+                c = 0.01
+            elif len(self.scheduler.detect_frames) >= self.scheduler.base_interval and cost <= 1:
+                c = 0.02
+        
+        done = (self.frame_i == len(self.img_list)-2) or self.scheduler.frame_i >= 100
+        # done = done or self.cost > 0 or (len(self.boxes) == 0)
+        #if done:
+        #    r = self.reward/self.scheduler.frame_i - self.cost
+        #else:
+        #    r = 0
         
         self.frame_i += 1
         self.frame = cv2.imread(self.img_list[self.frame_i])
         self.track()
         s_ = self.scheduler.boxes_to_state(self.boxes)
-        return s_, r, done
+        return s_, r-c, done
     
 
     

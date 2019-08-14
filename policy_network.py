@@ -617,18 +617,6 @@ class Policy3(nn.Module):
 
             # Run model
             outputs = self.forward(imgs)
-            
-            '''print(outputs.data.cpu().numpy()[0])
-            img1 = imgs[0,3:6,:,:].data.cpu().numpy()
-            diff = imgs[0,6:9,:,:].data.cpu().numpy()
-            img1 = img1.transpose(1,2,0)#[:,:,::-1]
-            diff = diff.transpose(1,2,0)#[:,:,::-1]
-            diff /= np.max(diff)
-            fig, ax = plt.subplots(1)
-            ax.imshow(img1)
-            plt.show()
-            ax.imshow(diff)
-            plt.show()'''
 
             labels = labels.data.cpu().numpy()
             preds = (outputs >= 0).float().data.cpu().numpy()

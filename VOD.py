@@ -30,7 +30,7 @@ class Detector(nn.Module):
         self.model = model
         if model == 'yolov3':
             self.detector = Darknet("yolov3/cfg/yolov3-spp.cfg", img_size=416).to(self.device)
-            load_darknet_weights(self.detector, "yolov3/weights/weights/yolov3-spp.weights")
+            load_darknet_weights(self.detector, "yolov3/weights/yolov3-spp.weights")
             self.detector.eval()
             
     def detect(self, img, conf_thres=0.5, nms_thres=0.5, img_size=416):

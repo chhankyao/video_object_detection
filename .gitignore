@@ -1,0 +1,8 @@
+anaconda3/
+data/
+videos/
+install.sh
+example.desktop
+*.pth
+*.npy
+

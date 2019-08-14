@@ -7,13 +7,13 @@ import os
 import cv2
 import random
 import numpy as np
-import matplotlib.pyplot as plt
 
-import kcftracker
+
+from trackers.kcftracker import *
+from trackers.siamfc import *
 from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
-from my_utils import *
 from utils_A3C import *
 from pointnet import *
 from VOD import *
@@ -89,7 +89,7 @@ class Worker(mp.Process):
         self.lnet = Net(N_S, N_A, torch.device("cpu"))
         data_dir = 'data/ILSVRC2015/Data/VID/train/'
         train_list = 'data/ILSVRC2015/ImageSets/VID/my_train.txt'
-        self.env = VOD(scheduler='a3c', detect_interval=30)
+        self.env = VOD(scheduler='a3c', detect_interval=20)
         self.env.train_init(data_dir, train_list)
 
     def run(self):

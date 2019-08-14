@@ -11,8 +11,8 @@ import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
 
-import kcftracker
-from siamfc import *
+from trackers.kcftracker import *
+from trackers.siamfc import *
 from yolov3.models import *
 from yolov3.utils.utils import *
 from yolov3.utils.datasets import *
@@ -56,8 +56,8 @@ class Scheduler(nn.Module):
         self.device = device
         self.model = model
         self.base_interval = base_interval
-        self.n_total = 0
-        self.n_detects = 0
+        self.n_tot = 0
+        self.n_detect_tot = 0
         if model == 'a3c':
             self.state_dim = (20,10)
             self.act_dim = 2
@@ -65,14 +65,14 @@ class Scheduler(nn.Module):
             if phase == 'train':
                 self.pointnet.train()
             else:
-                self.pointnet.load_state_dict(torch.load('A3C_detect.pth'))
+                self.pointnet.load_state_dict(torch.load('models/A3C_detect3.pth'))
                 self.pointnet.eval()
             
     def boxes_to_state(self, boxes):
         state = np.zeros(self.state_dim)
-        state[0, :] = self.last_detect
-        state[1, :] = self.interval - self.last_detect
-        state[2, :] = self.interval
+        state[0, :] = 0 #self.last_detect
+        state[1, :] = 0 #self.interval - self.last_detect
+        state[2, :] = 0 #self.interval
         state[3, :] = np.mean(self.detect_frames) if len(self.detect_frames) else 0
         for i in range(min(len(boxes), self.state_dim[1])):
             state[4:, i] = boxes[i][4:20]
@@ -80,6 +80,7 @@ class Scheduler(nn.Module):
         
     def reset(self):
         self.frame_i = 0
+        self.n_detect = 0
         self.last_detect = 1
         self.detect_frames = []
         self.interval = self.base_interval
@@ -95,13 +96,6 @@ class Scheduler(nn.Module):
                 self.interval = 1
             else:
                 self.interval = self.base_interval
-            '''  
-            if a == 0:
-                self.interval = 1
-            elif a == 1:
-                self.interval = max(1, self.interval/2)
-            elif a == 2:
-                self.interval = min(self.base_interval*2, self.interval*2)'''
         elif self.model == 'heuristic':
             score = np.mean([b[13] for b in boxes]) if len(boxes) > 0 else 1
             self.interval = min(self.interval, self.base_interval*score)
@@ -114,13 +108,14 @@ class Scheduler(nn.Module):
         if len(self.detect_frames) > self.base_interval:
             del self.detect_frames[0]
         self.frame_i += 1
-        self.n_total += 1
-        self.n_detects += detect
+        self.n_tot += 1
+        self.n_detect += detect
+        self.n_detect_tot += detect
         self.last_detect = 1 if detect else self.last_detect + 1
         return detect
 
     def print_stats(self):
-        avg_interval = self.n_total / self.n_detects
+        avg_interval = self.n_tot / self.n_detect_tot
         print('Avg detection interval =', avg_interval)
         
 
@@ -278,7 +273,7 @@ class VOD(nn.Module):
                     self.trackers = []
                     for box in self.boxes:
                         if self.tracker == 'kcf':
-                            self.trackers.append(kcftracker.KCFTracker(False, True, True))
+                            self.trackers.append(KCFTracker(False, True, True))
                             self.trackers[-1].init(to_tracking_box(box[:4]), self.frame)
                         else:
                             self.trackers.append(TrackerSiamFC(net_path='siamfc.pth'))
@@ -339,10 +334,10 @@ class VOD(nn.Module):
                     self.trackers = []
                     for box in self.boxes:
                         if self.tracker == 'kcf':
-                            self.trackers.append(kcftracker.KCFTracker(False, True, True))
+                            self.trackers.append(KCFTracker(False, True, True))
                             self.trackers[-1].init(to_tracking_box(box[:4]), self.frame)
                         else:
-                            self.trackers.append(TrackerSiamFC(net_path='siamfc.pth'))
+                            self.trackers.append(TrackerSiamFC(net_path='trackers/siamfc.pth'))
                             self.trackers[-1].init(self.frame, to_tracking_box(box[:4]))
                 else:
                     self.boxes = self.update_bbox([], detections, True)
@@ -376,8 +371,7 @@ class VOD(nn.Module):
         self.frame = cv2.imread(self.img_list[self.frame_i])
         self.scheduler.reset()
         self.boxes = []
-        self.reward = 0
-        self.cost = 0
+        self.rewards = []
         s, _, _ = self.step(1)
         if len(self.boxes) == 0:
             self.reset()
@@ -387,22 +381,8 @@ class VOD(nn.Module):
     def get_reward(self):
         label = self.img_list[self.frame_i].replace('Data', 'Annotations').replace('.JPEG', '.xml')
         boxes_gt = parse_bbox(label, self.id2idx)
-        #detections = self.detector.detect(self.frame, conf_thres=0.1)
-        #boxes_baseline = self.update_bbox([], detections, True)
         tp, tp_iou = get_tp_iou(self.boxes, boxes_gt, self.iou_thres)
-        #tp2, tp_iou2 = get_tp_iou(boxes_baseline, boxes_gt, self.iou_thres)
         r = tp_iou / (len(self.boxes) + len(boxes_gt) - tp + 1e-9)
-        #r2 = tp_iou2 / (len(boxes_baseline) + len(boxes_gt) - tp2 + 1e-9)
-        #self.reward += (r - r2)
-        #cost = np.sum(self.scheduler.detect_frames)
-        #if cost > (self.scheduler.base_interval/3):
-        #    self.cost = 0.5
-        #elif cost > (self.scheduler.base_interval/5):
-        #    self.cost = 0.1
-        #elif len(self.scheduler.detect_frames) >= self.scheduler.base_interval and cost <= 1:
-        #    self.cost = 0.1
-        #else:
-        #    self.cost = 0
         return r
 
 
@@ -418,35 +398,30 @@ class VOD(nn.Module):
             self.trackers = []
             for box in self.boxes:
                 if self.tracker == 'kcf':
-                    self.trackers.append(kcftracker.KCFTracker(False, True, True))
+                    self.trackers.append(KCFTracker(False, True, True))
                     self.trackers[-1].init(to_tracking_box(box[:4]), self.frame)
                 else:
-                    self.trackers.append(TrackerSiamFC(net_path='siamfc.pth'))
+                    self.trackers.append(TrackerSiamFC(net_path='trackers/siamfc.pth'))
                     self.trackers[-1].init(self.frame, to_tracking_box(box[:4]))
 
             r2 = self.get_reward()
-            r = r2 - r1
-        
-            cost = np.sum(self.scheduler.detect_frames)
-            if cost > (self.scheduler.base_interval/3):
-                c = 0.1
-            elif cost > (self.scheduler.base_interval/5):
-                c = 0.01
-            elif len(self.scheduler.detect_frames) >= self.scheduler.base_interval and cost <= 1:
-                c = 0.02
+            self.rewards.append(r2 - r1)
         
         done = (self.frame_i == len(self.img_list)-2) or self.scheduler.frame_i >= 100
-        # done = done or self.cost > 0 or (len(self.boxes) == 0)
-        #if done:
-        #    r = self.reward/self.scheduler.frame_i - self.cost
-        #else:
-        #    r = 0
+        if done:
+            interval_avg = self.scheduler.frame_i / self.scheduler.n_detect
+            if interval_avg < 3 or interval_avg > self.scheduler.base_interval:
+                r = 0
+            else:
+                r = np.mean(self.rewards)
+        else:
+            r = 0
         
         self.frame_i += 1
         self.frame = cv2.imread(self.img_list[self.frame_i])
         self.track()
         s_ = self.scheduler.boxes_to_state(self.boxes)
-        return s_, r-c, done
+        return s_, r, done
     
 
     
@@ -455,7 +430,7 @@ if __name__ == "__main__":
     detector = 'yolov3'
     tracker = 'kcf'
     scheduler = 'a3c'
-    detect_interval = 30
+    detect_interval = 20
     vod = VOD(detector, tracker, scheduler, detect_interval)
     
     

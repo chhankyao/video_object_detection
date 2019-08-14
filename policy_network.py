@@ -629,3 +629,17 @@ class Policy3(nn.Module):
             recall = tp / (pos_gt + 1e-9)
             f1 = 2 * precision * recall / (precision + recall + 1e-9)
             print('batch %d: precision=%.2f, recall=%.2f, f1=%.2f' % (i, precision, recall, f1))
+            
+            
+            
+if __name__ == "__main__":
+
+    img_size = (64, 64)
+    data_dir = 'data/ILSVRC2015/Data/VID/'
+    train_list = 'data/ILSVRC2015/ImageSets/VID/train_all.txt'
+    val_list = 'data/ILSVRC2015/ImageSets/VID/val.txt'
+    output_model = 'models/policy.pth'
+
+    model = Policy(img_size)
+    #model.train_model(data_dir, train_list, val_list, output_model, epochs=4, batch_size=64)
+    model.validate_model(data_dir, val_list, output_model, batch_size=64)

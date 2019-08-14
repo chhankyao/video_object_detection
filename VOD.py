@@ -406,10 +406,13 @@ class VOD(nn.Module):
             r2 = self.get_reward()
             self.rewards.append(r2 - r1)
         
-        r = 0
         n_detect = np.sum(self.scheduler.detect_frames)
-        if (detect and n_detect > self.scheduler.base_interval/3) or n_detect <= 1:
-            r -= 0.01
+        if detect and n_detect > self.scheduler.base_interval/3:
+            r = -0.01
+        elif not detect and len(self.scheduler.detect_frames) >= self.scheduler.base_interval and n_detect <= 1:
+            r = -0.01
+        else:
+            r = 0
         
         done = (self.frame_i == len(self.img_list)-2) or self.scheduler.frame_i >= 50
         if done:

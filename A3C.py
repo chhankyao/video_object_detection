@@ -89,7 +89,7 @@ class Worker(mp.Process):
         self.lnet = Net(N_S, N_A, torch.device("cpu"))
         data_dir = 'data/ILSVRC2015/Data/VID/train/'
         train_list = 'data/ILSVRC2015/ImageSets/VID/my_train.txt'
-        self.env = VOD(scheduler='a3c', detect_interval=20)
+        self.env = VOD(scheduler='a3c', detect_interval=30)
         self.env.train_init(data_dir, train_list)
 
     def run(self):
@@ -139,14 +139,14 @@ if __name__ == "__main__":
         r = res_queue.get()
         if r is not None:
             res.append(r)
-            if global_ep.value % 50 == 0:
+            if global_ep.value % 100 == 0:
                 print('ep {}: reward = {}'.format(global_ep.value, r))
-                torch.save(gnet.state_dict(), 'models/A3C_detect3.pth')
-                np.save('models/rewards_detect3', np.array(res))
+                torch.save(gnet.state_dict(), 'models/A3C_detect.pth')
+                np.save('models/rewards', np.array(res))
         else:
             break
             
     [w.join() for w in workers]
-    torch.save(gnet.state_dict(), 'models/A3C_detect3.pth')
-    np.save('models/rewards_detect3', np.array(res))
+    torch.save(gnet.state_dict(), 'models/A3C_detect.pth')
+    np.save('models/rewards', np.array(res))
     

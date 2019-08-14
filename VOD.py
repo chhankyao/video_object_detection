@@ -104,7 +104,7 @@ class Scheduler(nn.Module):
         detect = self.frame_i == 0 or self.last_detect >= self.interval
         if self.model == 'heuristic' and detect:
             self.interval = self.base_interval
-        self.detect_frames.append(1*detect)
+        self.detect_frames.append(detect)
         if len(self.detect_frames) > self.base_interval:
             del self.detect_frames[0]
         self.frame_i += 1
@@ -390,7 +390,6 @@ class VOD(nn.Module):
         self.scheduler.update_interval(self.boxes, a)
         detect = self.scheduler.step()
         
-        r, c = 0, 0
         r1 = self.get_reward()
         if detect:
             detections = self.detector.detect(self.frame, conf_thres=0.1)
@@ -407,15 +406,14 @@ class VOD(nn.Module):
             r2 = self.get_reward()
             self.rewards.append(r2 - r1)
         
-        done = (self.frame_i == len(self.img_list)-2) or self.scheduler.frame_i >= 100
+        r = 0
+        n_detect = np.sum(self.scheduler.detect_frames)
+        if (detect and n_detect > self.scheduler.base_interval/3) or n_detect <= 1:
+            r -= 0.01
+        
+        done = (self.frame_i == len(self.img_list)-2) or self.scheduler.frame_i >= 50
         if done:
-            interval_avg = self.scheduler.frame_i / self.scheduler.n_detect
-            if interval_avg < 3 or interval_avg > self.scheduler.base_interval:
-                r = 0
-            else:
-                r = np.mean(self.rewards)
-        else:
-            r = 0
+            r += np.mean(self.rewards)
         
         self.frame_i += 1
         self.frame = cv2.imread(self.img_list[self.frame_i])

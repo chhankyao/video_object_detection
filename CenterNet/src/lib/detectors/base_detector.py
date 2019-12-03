@@ -21,27 +21,6 @@ class BaseDetector(object):
       opt.device = torch.device('cpu')
     
     print('Creating model...')
-    '''print(opt.gpus)
-    print(opt.device)
-    print(opt.arch)
-    print(opt.heads)
-    print(opt.head_conv)
-    print(opt.load_model)
-    print(opt.mean)
-    print(opt.std)
-    print(opt.num_classes)
-    print(opt.test_scales)
-    print(opt.dataset)
-    print(opt.debugger_theme)
-    print(opt.input_h)
-    print(opt.input_w)
-    print(opt.fix_res)
-    print(opt.flip_test)
-    print(opt.down_ratio)
-    print(opt.reg_offset)
-    print(opt.K)
-    print(opt.nms)'''
-
     self.model = create_model(opt.arch, opt.heads, opt.head_conv)
     self.model = load_model(self.model, opt.load_model)
     self.model = self.model.to(opt.device)
@@ -118,7 +97,7 @@ class BaseDetector(object):
     
     loaded_time = time.time()
     load_time += (loaded_time - start_time)
-
+    
     detections = []
     for scale in self.scales:
       scale_start_time = time.time()
@@ -159,6 +138,7 @@ class BaseDetector(object):
 
     if self.opt.debug >= 1:
       self.show_results(debugger, image, results)
+    
     return {'results': results, 'tot': tot_time, 'load': load_time,
             'pre': pre_time, 'net': net_time, 'dec': dec_time,
             'post': post_time, 'merge': merge_time}

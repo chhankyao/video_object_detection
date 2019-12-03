@@ -2,9 +2,11 @@ import numpy as np
 import xml.etree.ElementTree as ET
 
 
-def parse_bbox(label_file, cls_map, valid_classes=None):
+def parse_bbox(label_file, cls_map, valid_classes=None, img_size=None):
     boxes = []
     root = ET.parse(label_file).getroot()
+    w = int(root.find('size/width').text)
+    h = int(root.find('size/height').text)
     for obj in root.findall('object'):
         cls = cls_map[obj.find('name').text]
         if valid_classes is None or cls in valid_classes:
@@ -12,6 +14,8 @@ def parse_bbox(label_file, cls_map, valid_classes=None):
             y1 = int(obj.find('bndbox/ymin').text)
             x2 = int(obj.find('bndbox/xmax').text)
             y2 = int(obj.find('bndbox/ymax').text)
+            if img_size is not None:
+                x1, y1, x2, y2 = rescale_bbox([x1, y1, x2, y2], (h, w), (img_size, img_size))
             boxes.append([x1, y1, x2, y2, cls])
     return boxes
 
@@ -109,8 +113,8 @@ def compute_mAP(tp, conf, cls_pred, cls_gt):
     ap, p, r = [], [], []
     for c in unique_classes:
         i = cls_pred == c
-        n_gt = (cls_gt == c).sum()  # Number of ground truth objects
-        n_p = i.sum()               # Number of predicted objects
+        n_gt = np.sum(cls_gt == c)#.sum()  # Number of ground truth objects
+        n_p = np.sum(i)#.sum()               # Number of predicted objects
 
         if n_p == 0 and n_gt == 0:
             continue
@@ -133,5 +137,18 @@ def compute_mAP(tp, conf, cls_pred, cls_gt):
 
             # AP from recall-precision curve
             ap.append(compute_ap(recall_curve, precision_curve))
-            
-    return ap
+
+    return unique_classes, ap
+
+
+
+def update_confusion(confusion, boxes_pred, boxes_gt, iou_thres):
+    for box1 in boxes_pred:
+        matched = False
+        for box2 in boxes_gt:
+                if iou(box1, box2) >= iou_thres:
+                    matched = True
+                    confusion[int(box1[-1])][int(box2[-1])] += 1
+                    break
+        if not matched:
+            confusion[int(box1[-1])][-1] += 1

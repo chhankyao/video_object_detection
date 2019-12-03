@@ -74,7 +74,7 @@ def nms(np.ndarray[np.float32_t, ndim=2] dets, np.float thresh):
 
     return keep
 
-def soft_nms(np.ndarray[float, ndim=2] boxes, float sigma=0.5, float Nt=0.3, float threshold=0.001, unsigned int method=0):
+def soft_nms(np.ndarray[float, ndim=2] boxes, float sigma=0.5, float Nt=0.3, float threshold=0.01, unsigned int method=0):
     cdef unsigned int N = boxes.shape[0]
     cdef float iw, ih, box_area
     cdef float ua

@@ -1,7 +1,8 @@
 import numpy as np 
 import cv2
 
-import trackers.fhog
+#from trackers.fhog import *
+import trackers.fhog as fhog
 
 # ffttools
 def fftd(img, backwards=False):	

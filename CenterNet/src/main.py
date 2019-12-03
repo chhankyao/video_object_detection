@@ -64,6 +64,9 @@ def main(opt):
   )
 
   print('Starting training...')
+  print('save dir =', opt.save_dir)
+  print('val interval =', opt.val_intervals)
+  print('mse loss =', opt.mse_loss)
   best = 1e10
   for epoch in range(start_epoch + 1, opt.num_epochs + 1):
     mark = epoch if opt.save_all else 'last'
@@ -73,6 +76,7 @@ def main(opt):
       logger.scalar_summary('train_{}'.format(k), v, epoch)
       logger.write('{} {:8f} | '.format(k, v))
     if opt.val_intervals > 0 and epoch % opt.val_intervals == 0:
+      print('saving model: ' + 'model_{}.pth'.format(mark))
       save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(mark)), 
                  epoch, model, optimizer)
       with torch.no_grad():

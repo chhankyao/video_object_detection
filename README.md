@@ -1,9 +1,13 @@
 # Video Object Detection via Temporal Aggregation
 
-* [YOLOv3](https://github.com/ultralytics/yolov3)
+## Single-image Object Detection
 
+* [YOLOv3](https://github.com/ultralytics/yolov3)
 * [CenterNet](https://github.com/xingyizhou/CenterNet)
 
-* [SiamFC] (https://github.com/huanglianghua/siamfc-pytorch) 
+## Object Tracking
+* [SiamFC](https://github.com/huanglianghua/siamfc-pytorch) 
+* [KCF](https://github.com/uoip/KCFpy)
 
-* [KCF] (https://github.com/uoip/KCFpy)
+## Keyframe Scheduling
+* [A3C](https://github.com/MorvanZhou/pytorch-A3C)

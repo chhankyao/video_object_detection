@@ -1,4 +1,4 @@
-# Video Object Detection via Temporal Aggregation
+# Video Object Detection via Object-level Temporal Aggregation
 
 ## Single-image Object Detection
 
